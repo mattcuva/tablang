@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define NUMTOKS 6
+#define NUMTOKS 7
 typedef enum Tok {
     ERR,
     VAR,
@@ -9,6 +9,7 @@ typedef enum Tok {
     OR,
     LPAREN,
     RPAREN,
+    NOT,
 } Tok;
 
 typedef struct Token {
@@ -39,7 +40,7 @@ void getnexttoken(char *input, int *cur, Token *ret) {
         return;
     }
 
-    char chtotok[NUMTOKS] = {'\0', '\0', '&', '|', '(', ')'};
+    char chtotok[NUMTOKS] = {'\0', '\0', '&', '|', '(', ')', '-'};
     for (int i = 0; i < NUMTOKS; i++) { // single-character tokens
         if (chtotok[i] == c) {
             ret->tok = i;
@@ -59,22 +60,85 @@ void printtokens(char *input) {
     int cg = 0;
     Token t;
     getnexttoken(input, &cg, &t);
-    char *tokstrings[NUMTOKS] = {"ERR", "VAR", "AND", "OR", "LPAREN", "RPAREN"};
+    char *tokstrings[NUMTOKS] = {"ERR", "VAR", "AND", "OR", "LPAREN", "RPAREN", "NOT"};
     while (t.tok != ERR) {
         printf("%5s  %c  %i\n", tokstrings[t.tok], t.lex, t.index);
         getnexttoken(input, &cg, &t);
     }
 }
 
-// evaulate the expression using truth values in varvalues (same format as presentvars)
-int evaluate(Token *tokens, int numtokens, int varvalues) {
+#define varvalue(varvalues, var) (varvalues >> (var - 'a')) & 1
+/*
+evaulate the expression using truth values in varvalues (same format as presentvars)
+
+    Expr := [NOT] (VAR | LPAREN Expr RPAREN) [(AND|OR) Expr]
+*/
+int evaluate(Token *tokens, int numtokens, int *index, unsigned int varvalues) {
+    unsigned int negate = 0;
+    if (tokens[*index].tok == NOT) {
+        // [NOT]
+        negate = 1;
+        (*index)++;
+    }
     
+    unsigned int value;
+
+    if (tokens[*index].tok == LPAREN) {
+        // LPAREN Expr RPAREN
+        int lparenindex = *index;
+        (*index)++;
+        int exprresult = evaluate(tokens, numtokens, index, varvalues);
+        if (exprresult == -1)
+            return -1;
+        if (*index >= numtokens) {
+            printf("Unmatched LPAREN at index %i\n", lparenindex);
+            return -1;
+        }
+        if (tokens[*index].tok != RPAREN) {
+            printf("Unexpected token %c\n", tokens[*index].lex);
+            return -1;
+        }
+        (*index)++;
+        value = exprresult & 1;
+    } else {
+        // VAR
+        if (tokens[*index].tok == VAR) {
+            value = varvalue(varvalues, tokens[*index].lex);
+            (*index)++;
+        } else {
+            printf("Unexpected token %s\n", tokens[*index].lex);
+            return -1;
+        }
+    }
+
+    value = (negate ? ~value : value) & 1;
+
+    // [(AND|OR) Expr]
+    if (*index >= numtokens) {
+        return value;
+    } else if (tokens[*index].tok == AND) {
+        (*index)++;
+        int exprresult = evaluate(tokens, numtokens, index, varvalues);
+        if (exprresult != -1) 
+            return value & exprresult;
+        else
+            return -1;
+    } else if (tokens[*index].tok == OR) {
+        (*index)++;
+        int exprresult = evaluate(tokens, numtokens, index, varvalues);
+        if (exprresult != -1) 
+            return value | exprresult;
+        else
+            return -1;
+    } else {    
+        return value;
+    }
 }
 
 int main(int argc, char **argv) {
 
-    char *input = "a & b";
-    //printtokens(in);
+    char *input = "(a | b) & c";
+    printtokens(input);
 
     int cg = 0;
     Token tokens[512]; // tokens in the expression
@@ -91,10 +155,7 @@ int main(int argc, char **argv) {
         getnexttoken(input, &cg, &t);
     }
 
-    for (int i = 0; i < 26; i++) {
-        if ((presentvars >> i) & 1)
-            printf("%c ", i + 'a');
-    }
-    printf("\n");
+    int tokindex = 0;
+    printf("%i\n", evaluate(tokens, numtokens, &tokindex, 0b00000000000000000000000000000100));
 
 }

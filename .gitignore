@@ -1,11 +1,11 @@
-# VS Code
-.vscode
-
 # Files w/o an extension
 *
 !/**/
 !*.*
 !LICENSE
+
+# VS Code
+.vscode
 
 # files for testing
 *.txt
