@@ -106,7 +106,7 @@ int evaluate(Token *tokens, int numtokens, int *index, unsigned int varvalues) {
             value = varvalue(varvalues, tokens[*index].lex);
             (*index)++;
         } else {
-            printf("Unexpected token %s\n", tokens[*index].lex);
+            printf("Unexpected token %c\n", tokens[*index].lex);
             return -1;
         }
     }
@@ -135,10 +135,16 @@ int evaluate(Token *tokens, int numtokens, int *index, unsigned int varvalues) {
     }
 }
 
+void printbits(unsigned int n) {
+    for (int i = 31; i >= 0; i--)
+        printf("%i", (n >> i)&1);
+    printf("\n");
+}
+
 int main(int argc, char **argv) {
 
-    char *input = "(a | b) & c";
-    printtokens(input);
+    char *input = "a | b & c";
+    //printtokens(input);
 
     int cg = 0;
     Token tokens[512]; // tokens in the expression
@@ -155,7 +161,43 @@ int main(int argc, char **argv) {
         getnexttoken(input, &cg, &t);
     }
 
-    int tokindex = 0;
-    printf("%i\n", evaluate(tokens, numtokens, &tokindex, 0b00000000000000000000000000000100));
+    unsigned int numpresentvars = 0;
+    unsigned int countbits = presentvars;
+    while (countbits) {
+        numpresentvars += countbits & 1;
+        countbits >>= 1;
+    }
+    
+    // please excuse my awful printf() usage
+    for (int i = 0; i < 26; i++) {
+        if (presentvars >> i & 1)
+            printf("%c  ", i + 'a');
+    }
+    printf("|  %s\n", input);
+    for (int i = 1; i < numpresentvars; i++) {
+        printf("---");
+    }
+    printf("---|---\n");
+
+    // uh oh
+    unsigned int combos = ~((~0u)<<numpresentvars); // start with 2^n - 1 binary number, count down to zero, every resulting binary number   
+                                                    // on the way produces all the combos of truth values for n vars
+    do {
+        int tokindex = 0;
+        unsigned int tvalues = 0;
+        int cslot = 0;
+        for (int i = 0; i < numpresentvars; i++) {
+            while (!((presentvars>>cslot) & 1))
+                cslot++; // using presentvars, "slide" each bit from combos to the corrosponding slot for that var
+            tvalues += ((combos>>i) & 1) << cslot++;
+        }
+        //printbits(tvalues);
+        for (int i = numpresentvars-1; i >= 0; i--) {
+            printf("%i  ", combos >> i & 1);
+        }
+        printf("|  ");
+
+        printf("%i\n", evaluate(tokens, numtokens, &tokindex, tvalues));
+    } while (combos-- > 0);
 
 }
