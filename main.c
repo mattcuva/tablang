@@ -143,7 +143,7 @@ void printbits(unsigned int n) {
 
 int main(int argc, char **argv) {
 
-    char *input = "(a | b) & c";
+    char *input = "(a | -b) & c";
     //printtokens(input);
 
     int cg = 0;
