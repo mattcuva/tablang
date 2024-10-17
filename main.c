@@ -143,7 +143,7 @@ void printbits(unsigned int n) {
 
 int main(int argc, char **argv) {
 
-    char *input = "a | b & c";
+    char *input = "(a | b) & c";
     //printtokens(input);
 
     int cg = 0;
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
     }
     
     // please excuse my awful printf() usage
-    for (int i = 0; i < 26; i++) {
+    for (int i = 25; i >= 0; i--) {
         if (presentvars >> i & 1)
             printf("%c  ", i + 'a');
     }
